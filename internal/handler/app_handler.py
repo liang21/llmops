@@ -14,11 +14,13 @@ from dotenv import load_dotenv
 from flask import request
 from injector import inject
 from openai import OpenAI
+from sqlalchemy.exc import SQLAlchemyError
 
 from internal.extension import FailException
 from internal.schema import CompletionReq
+from internal.service import AppService
 from internal.service.user_service import UserService
-from pkg.response import success_json, validate_error_json
+from pkg.response import success_json, validate_error_json, success_message, fail_message
 
 load_dotenv()
 
@@ -26,16 +28,23 @@ load_dotenv()
 @inject
 @dataclass
 class AppHandler:
-    # app_service: AppService
+    app_service: AppService
     user_service: UserService
 
-    # def create_app(self):
-    #     """
-    #     创建app
-    #     :return:
-    #     """
-    #     app = self.app_service.create_app()
-    #     return success_message(f"应用已经成功创建,id为{app.id}")
+    def create_app(self):
+        """
+        创建app
+        :return:
+        """
+        try:
+            app = self.app_service.create_app()
+            return success_message(f"应用已经成功创建,id为{app.id}")
+        except SQLAlchemyError as e:
+            # 捕获数据库相关异常
+            return fail_message(f"数据库操作失败: {str(e)}")
+        except Exception as e:
+            # 捕获其他异常
+            return fail_message(f"创建应用失败: {str(e)}")
 
     def create_user(self):
         """

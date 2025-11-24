@@ -11,6 +11,7 @@ from dataclasses import dataclass
 
 from flask_sqlalchemy import SQLAlchemy
 from injector import inject
+from sqlalchemy.exc import SQLAlchemyError
 
 from internal.model import App
 
@@ -25,7 +26,11 @@ class AppService:
         创建app
         :return:
         """
-        app = App(name="聊天机器人", account_id=uuid.uuid4(), icon="", description="这是一个简单的聊天机器人")
-        self.db.session.add(app)
-        self.db.session.commit()
-        return app
+        try:
+            app = App(name="聊天机器人", account_id=uuid.uuid4(), icon="", description="这是一个简单的聊天机器人")
+            self.db.session.add(app)
+            self.db.session.commit()
+            return app
+        except SQLAlchemyError as e:
+            self.db.session.rollback()
+            raise e  # 重新抛出异常让上层处理
