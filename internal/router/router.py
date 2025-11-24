@@ -31,6 +31,7 @@ class Router:
         # 2. 将url与对应的控制器方法做绑定
         bp.add_url_rule('/ping', view_func=self.app_handler.ping)
         bp.add_url_rule('/chat', methods=['POST'], view_func=self.app_handler.completion)
-        bp.add_url_rule('/app', methods=['POST'], view_func=self.app_handler.create_app)
+        # bp.add_url_rule('/app', methods=['POST'], view_func=self.app_handler.create_app)
+        bp.add_url_rule('user', methods=['POST'], view_func=self.app_handler.create_user)
         # 3. 在应用上注册蓝图
         app.register_blueprint(bp)

@@ -7,7 +7,9 @@
 @File    : __init__.py.py
 """
 from .app import App
+from .user import User
 
 __all__ = [
-    "App"
+    "App",
+    "User"
 ]
