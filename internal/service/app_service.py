@@ -9,11 +9,10 @@
 import uuid
 from dataclasses import dataclass
 
-from flask_sqlalchemy import SQLAlchemy
 from injector import inject
-from sqlalchemy.exc import SQLAlchemyError
 
 from internal.model import App
+from pkg.sqlalchemy import SQLAlchemy
 
 
 @inject
@@ -26,8 +25,7 @@ class AppService:
         创建app
         :return:
         """
-
-        app = App(name="聊天机器人", account_id=uuid.uuid4(), icon="", description="这是一个简单的聊天机器人")
-        self.db.session.add(app)
-        self.db.session.commit()
+        with self.db.auto_commit():
+            app = App(name="聊天机器人", account_id=uuid.uuid4(), icon="", description="这是一个简单的聊天机器人")
+            self.db.session.add(app)
         return app

@@ -6,13 +6,13 @@
 @Author  : terminator
 @File    : app.py
 """
-from flask_sqlalchemy import SQLAlchemy
 from injector import Injector
 
 from app import ExtensionModule
 from config import Config
 from internal.router import Router
 from internal.server import Server
+from pkg.sqlalchemy import SQLAlchemy
 
 injector = Injector([ExtensionModule])
 conf = Config()
