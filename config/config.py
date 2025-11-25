@@ -9,6 +9,8 @@
 import os
 from typing import Any
 
+from loguru import logger
+
 from config.default_config import DEFAULT_CONFIG
 
 
@@ -35,6 +37,7 @@ class Config:
 
         # 数据库
         self.SQLALCHEMY_DATABASE_URI = _get_env('SQLALCHEMY_DATABASE_URI')
+        logger.info(f"SQLALCHEMY_DATABASE_URI: {self.SQLALCHEMY_DATABASE_URI}")
         self.SQLALCHEMY_ENGINE_OPTIONS = {
             'pool_size': int(_get_env('SQLALCHEMY_POOL_SIZE')),
             'pool_recycle': int(_get_env('SQLALCHEMY_POOL_RECYCLE')),
