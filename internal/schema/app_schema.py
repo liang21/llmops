@@ -16,6 +16,6 @@ class CompletionReq(FlaskForm):
         "query",
         validators=[
             DataRequired(message="query is required"),
-            Length(min=1, max=1024, message="query length must be between 1 and 1024"),
+            Length( max=2000, message="query length must be 2000"),
         ]
     )

@@ -29,3 +29,7 @@ class AppService:
             app = App(name="聊天机器人", account_id=uuid.uuid4(), icon="", description="这是一个简单的聊天机器人")
             self.db.session.add(app)
         return app
+
+    def get_app(self, app_id):
+        app = self.db.session.query(App).get(app_id)
+        return app

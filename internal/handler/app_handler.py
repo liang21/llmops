@@ -9,13 +9,13 @@
 
 import os
 from dataclasses import dataclass
+from uuid import UUID
 
 from dotenv import load_dotenv
-from flask import request
 from injector import inject
-from openai import OpenAI
-from sqlalchemy.exc import SQLAlchemyError
-
+from langchain_community.chat_models import ChatOpenAI
+from langchain_core.output_parsers import StrOutputParser
+from langchain_core.prompts import ChatPromptTemplate
 from internal.extension import FailException
 from internal.schema import CompletionReq
 from internal.service import AppService
@@ -36,47 +36,59 @@ class AppHandler:
         创建app
         :return:
         """
-        try:
-            app = self.app_service.create_app()
-            return success_message(f"应用已经成功创建,id为{app.id}")
-        except SQLAlchemyError as e:
-            # 捕获数据库相关异常
-            return fail_message(f"数据库操作失败: {str(e)}")
-        except Exception as e:
-            # 捕获其他异常
-            return fail_message(f"创建应用失败: {str(e)}")
-
-    def create_user(self):
+        app = self.app_service.create_app()
+        return success_message(f"应用已经成功创建,id为{app.id}")
+    def get_app(self, id: UUID):
         """
-        创建用户
+        获取app
         :return:
         """
-        user = self.user_service.create_user()
-        return "ok"
+        app = self.app_service.get_app(id)
+        return success_json(app)
 
-    def completion(self):
+    def update_app(self,id: UUID):
+        """
+        更新app
+        :return:
+        """
+
+        with self.db.auto_commit():
+            app = self.get_app(id)
+            app.name = "更新后的应用"
+            self.db.session.add(app)
+        return app
+
+    def delete_app(self, id: UUID):
+        """
+        删除app
+        :return:
+        """
+        with self.db.auto_commit():
+            app = self.get_app(id)
+            self.db.session.delete(app)
+        return app
+
+    def completion(self, app_id: UUID):
         """
         处理用户请求
         :return:
         """
+        # 1、获取接口参数
         req = CompletionReq()
         if not req.validate():
             return validate_error_json(req.errors)
-        query = request.json.get("query")
 
-        client = OpenAI(
-            api_key=os.getenv("DEEPSEEK_API_KEY"),
-            base_url=os.getenv("DEEPSEEK_BASE_URL"),
-        )
-        completion = client.chat.completions.create(
-            model="deepseek-chat",
-            messages=[
-                {"role": "system", "content": "You are a helpful assistant."},
-                {"role": "user", "content": query},
-            ]
-        )
-        content = completion.choices[0].message.content
+        # 2、构建组件
+        prompt = ChatPromptTemplate.from_template("{query}")
+        llm = ChatOpenAI(model="deepseek-chat", temperature=0.9, base_url=os.getenv("DEEPSEEK_BASE_URL"),
+                         api_key=os.getenv("DEEPSEEK_API_KEY"))
+        parser = StrOutputParser()
+
+        # 3、构建链
+        chain = prompt | llm | parser
+        content = chain.invoke({"query": req.query.data})
         return success_json({"content": content})
+
 
     def ping(self):
         raise FailException("fail")
