@@ -39,7 +39,7 @@ class ConversationSummaryBufferMemory:
 
     def load_memory_variables(self) -> dict:
         buffer_string = self.get_buffer_string()
-        return {"chat_history": f"摘要:{self.summary}\n\n历史信息:{buffer_string}\n"}
+        return {"chat_history_muxiaoke.txt": f"摘要:{self.summary}\n\n历史信息:{buffer_string}\n"}
 
     def summary_text(self, origin_summary: str, new_line: str) -> str:
         """用于将旧摘要和传入的新对话生成一个新摘要"""
@@ -84,7 +84,7 @@ while True:
     memory_variables = memory.load_memory_variables()
     answer_prompt = (
         "你是一个强大的聊天机器人，请根据对应的上下文和用户提问解决问题。\n\n"
-        f"{memory_variables.get('chat_history')}\n\n"
+        f"{memory_variables.get('chat_history_muxiaoke.txt')}\n\n"
         f"用户的提问是: {user_input}"
     )
     response = client.chat.completions.create(
