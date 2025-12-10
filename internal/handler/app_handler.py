@@ -9,13 +9,18 @@
 
 import os
 from dataclasses import dataclass
+from operator import itemgetter
 from uuid import UUID
 
 from dotenv import load_dotenv
 from injector import inject
+from langchain_classic.memory import ConversationBufferWindowMemory
+from langchain_community.chat_message_histories import FileChatMessageHistory
 from langchain_community.chat_models import ChatOpenAI
 from langchain_core.output_parsers import StrOutputParser
-from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
+from langchain_core.runnables import RunnablePassthrough, RunnableLambda
+
 from internal.extension import FailException
 from internal.schema import CompletionReq
 from internal.service import AppService
@@ -38,6 +43,7 @@ class AppHandler:
         """
         app = self.app_service.create_app()
         return success_message(f"应用已经成功创建,id为{app.id}")
+
     def get_app(self, id: UUID):
         """
         获取app
@@ -46,7 +52,7 @@ class AppHandler:
         app = self.app_service.get_app(id)
         return success_json(app)
 
-    def update_app(self,id: UUID):
+    def update_app(self, id: UUID):
         """
         更新app
         :return:
@@ -78,17 +84,33 @@ class AppHandler:
         if not req.validate():
             return validate_error_json(req.errors)
 
-        # 2、构建组件
-        prompt = ChatPromptTemplate.from_template("{query}")
+        # prompt = ChatPromptTemplate.from_template("{query}")
+        # 2.创建prompt与记忆
+        prompt = ChatPromptTemplate.from_messages(
+            [("system", "你是一个强大的聊天机器人,能根据用户的提问回复对应的问题"), MessagesPlaceholder("history"),
+             ("human", "{query}")])
+
+        memory = ConversationBufferWindowMemory(k=3, return_messages=True, input_key="query", output_key="output",
+                                                chat_memory=FileChatMessageHistory(
+                                                    "storage/memory/chat_history.txt"),
+                                                )
+        # 3、创建llm
         llm = ChatOpenAI(model="deepseek-chat", temperature=0.9, base_url=os.getenv("DEEPSEEK_BASE_URL"),
                          api_key=os.getenv("DEEPSEEK_API_KEY"))
         parser = StrOutputParser()
 
-        # 3、构建链
-        chain = prompt | llm | parser
-        content = chain.invoke({"query": req.query.data})
-        return success_json({"content": content})
+        # 4、构建链应用
+        chain = RunnablePassthrough.assign(
+            history=RunnableLambda(memory.load_memory_variables) | itemgetter("history")
+        ) | prompt | llm | parser
 
+        # 调用链生成内容
+        chain_input = {
+            "query": req.query.data
+        }
+        content = chain.invoke(chain_input)
+        memory.save_context(chain_input, {"output": content})
+        return success_json({"content": content})
 
     def ping(self):
         raise FailException("fail")
