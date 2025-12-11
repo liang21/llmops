@@ -14,12 +14,14 @@ from uuid import UUID
 
 from dotenv import load_dotenv
 from injector import inject
+from langchain_classic.base_memory import BaseMemory
 from langchain_classic.memory import ConversationBufferWindowMemory
 from langchain_community.chat_message_histories import FileChatMessageHistory
 from langchain_community.chat_models import ChatOpenAI
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
-from langchain_core.runnables import RunnablePassthrough, RunnableLambda
+from langchain_core.runnables import RunnablePassthrough, RunnableLambda, RunnableConfig
+from langchain_core.tracers import Run
 
 from internal.extension import FailException
 from internal.schema import CompletionReq
@@ -74,6 +76,13 @@ class AppHandler:
             self.db.session.delete(app)
         return app
 
+    @classmethod
+    def _save_context(cls, run_obj: Run, config: RunnableConfig) -> None:
+        configurable = config.get("configurable", {})
+        configurable_memory = configurable.get("memory", None)
+        if configurable_memory is not None and isinstance(configurable_memory, BaseMemory):
+            configurable_memory.save_context(inputs=run_obj.inputs, outputs=run_obj.outputs)
+
     def completion(self, app_id: UUID):
         """
         处理用户请求
@@ -100,15 +109,15 @@ class AppHandler:
         parser = StrOutputParser()
 
         # 4、构建链应用
-        chain = RunnablePassthrough.assign(
+        chain = (RunnablePassthrough.assign(
             history=RunnableLambda(memory.load_memory_variables) | itemgetter("history")
-        ) | prompt | llm | parser
+        ) | prompt | llm | parser).with_listeners(on_end=self._save_context)
 
         # 调用链生成内容
         chain_input = {
             "query": req.query.data
         }
-        content = chain.invoke(chain_input)
+        content = chain.invoke(chain_input, config={"configurable": {"memory": memory}})
         memory.save_context(chain_input, {"output": content})
         return success_json({"content": content})
 
